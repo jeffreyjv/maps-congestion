@@ -2,18 +2,79 @@ name: CI
 
 on:
   push:
-    branches: ["*"]
+    branches: ["**"]
   pull_request:
     branches: [main]
 
 jobs:
-  test:
+  sast:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+      - name: Run Bandit
+        run: uvx bandit -r code/ -ll
 
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Export requirements
+        run: uv export --no-dev --format requirements-txt -o /tmp/requirements.txt
+        working-directory: code
+      - name: Run pip-audit
+        run: uvx pip-audit -r /tmp/requirements.txt
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Run Ruff
+        run: uvx ruff check code/
+
+  test:
+    needs: [sast, dependency-scan, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: code
       - name: Run unit tests
-        run: uv run pytest -v
+        run: uv run pytest tests/unit/ -v
+        working-directory: code
+
+  integration:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start services
+        run: docker compose up --build -d
+        working-directory: code
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/docs && break
+            sleep 2
+          done
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: code
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
+        working-directory: code
+      - name: Tear down
+        if: always()
+        run: docker compose down
+        working-directory: code
