@@ -47,12 +47,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
         working-directory: code
-      - name: Run tests
-        run: uv run pytest -v
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v
         working-directory: code
 
-  docker-integration:
-    if: github.ref == 'refs/heads/main'
+  integration:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -71,8 +71,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
         working-directory: code
-      - name: Run smoke tests
-        run: uv run pytest tests/smoke/ -v
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
         working-directory: code
       - name: Tear down
         if: always()

@@ -20,4 +20,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-addopts = "--ignore=tests/smoke"
+addopts = "-m 'not load'"
+markers = [
+    "load: run manually with: uv run pytest -m load -v -s",
+]

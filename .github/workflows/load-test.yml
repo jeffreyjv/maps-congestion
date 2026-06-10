@@ -1,0 +1,18 @@
+name: Load Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: code
+      - name: Run load tests
+        run: uv run pytest tests/load/ -v -s -m load
+        working-directory: code

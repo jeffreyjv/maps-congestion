@@ -9,21 +9,18 @@ def test_calculate_congestion_fresh_devices():
 
 def test_calculate_congestion_old_device():
     now = 1000.0
-    # age=150s → weight = 1 - 150/300 = 0.5
     entries = [("d1", now - 150)]
     assert calculate_congestion(entries, now) == 0.5
 
 
 def test_calculate_congestion_expired_device():
     now = 1000.0
-    # age=300s → weight = 0.0; clamped, contributes nothing
     entries = [("d1", now - 300)]
     assert calculate_congestion(entries, now) == 0.0
 
 
 def test_calculate_congestion_duplicate_devices():
     now = 1000.0
-    # d1 appears twice; only the fresher ping (age=0, weight=1.0) should count
     entries = [("d1", now - 100), ("d1", now)]
     assert calculate_congestion(entries, now) == 1.0
 
@@ -31,10 +28,10 @@ def test_calculate_congestion_duplicate_devices():
 def test_calculate_congestion_mixed():
     now = 1000.0
     entries = [
-        ("d1", now),           # weight 1.0
-        ("d2", now - 150),     # weight 0.5
-        ("d2", now - 50),      # duplicate — overrides above, weight = 1 - 50/300 ≈ 0.8333
-        ("d3", now - 300),     # expired — weight 0.0
+        ("d1", now),
+        ("d2", now - 150),
+        ("d2", now - 50),
+        ("d3", now - 300),
     ]
     score = calculate_congestion(entries, now)
     expected = 1.0 + (1.0 - 50 / 300)
