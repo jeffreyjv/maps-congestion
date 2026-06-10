@@ -69,7 +69,7 @@ jobs:
         run: docker build -t app:${{ github.sha }} ./code
 
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: app:${{ github.sha }}
           severity: HIGH,CRITICAL
