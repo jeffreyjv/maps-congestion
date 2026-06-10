@@ -15,5 +15,62 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Install dependencies
+        run: uv sync --dev
+        working-directory: code
+
       - name: Run unit tests
         run: uv run pytest -v
+        working-directory: code
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run Bandit
+        run: uvx bandit -r code/ -ll
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Export requirements
+        run: uv export --no-dev --format requirements-txt -o /tmp/requirements.txt
+        working-directory: code
+
+      - name: Run pip-audit
+        run: uvx pip-audit -r /tmp/requirements.txt
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run Ruff
+        run: uvx ruff check code/
+
+  container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t app:${{ github.sha }} ./code
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: app:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
