@@ -1,3 +1,10 @@
+# Load tests for throughput and concurrency under stress.
+# These verify the API can handle large volumes of concurrent pings without
+# dropping requests, queuing, or losing data. Uses fakeredis to isolate API
+# performance from Redis I/O — the goal is measuring the async request handling
+# layer, not the database. Skipped by default; run manually when needed.
+# Run with: uv run pytest tests/load/ -v -s -m load
+
 import asyncio
 import statistics
 import time
@@ -58,6 +65,8 @@ def _print_stats(label: str, latencies: list[float], wall_time: float) -> None:
     print(f"  max latency: {s[-1] * 1000:.2f} ms")
 
 
+# Fires 1000 pings simultaneously — asserts wall time is well under the sum of sequential
+# latencies, proving requests are handled concurrently and not queuing
 @pytest.mark.anyio
 async def test_concurrent_burst():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -75,6 +84,8 @@ async def test_concurrent_burst():
     )
 
 
+# Sends 10,000 pings in batches of 500 — reports throughput and latency percentiles
+# to verify performance does not degrade as load is sustained over time
 @pytest.mark.anyio
 async def test_sustained_load_no_degradation():
     all_latencies: list[float] = []
@@ -89,6 +100,8 @@ async def test_sustained_load_no_degradation():
     _print_stats("Sustained load", all_latencies, wall_time)
 
 
+# 100 unique devices ping the same geohash cell simultaneously — asserts all 100 writes
+# land in the sorted set with no data loss from concurrent Redis ZADD operations
 @pytest.mark.anyio
 async def test_concurrent_writes_no_data_loss():
     device_count = 100
